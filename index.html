@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Robot Ring Light — 灯光交互演示</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #070a12;
+    --panel: rgba(5, 8, 18, 0.90);
+    --border: rgba(30, 60, 140, 0.38);
+    --text: #adc4e0;
+    --muted: #334466;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+    width: 100vw; height: 100vh;
+  }
+  canvas { display: block; position: fixed; inset: 0; }
+
+  /* ── Left panel ── */
+  #panel {
+    position: fixed; left: 16px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 4px;
+    z-index: 10; width: 200px;
+    max-height: 96vh; overflow-y: auto;
+    scrollbar-width: none;
+  }
+  #panel::-webkit-scrollbar { display: none; }
+
+  .sec-label {
+    font-family: 'Orbitron', sans-serif; font-size: 8px;
+    letter-spacing: 3px; color: var(--muted); text-transform: uppercase;
+    padding-left: 2px; margin-bottom: 2px;
+  }
+  .ring-tag {
+    font-size: 8px; letter-spacing: 1px; color: var(--muted);
+    border-left: 2px solid; padding-left: 7px; line-height: 1.4;
+    margin-bottom: 2px;
+  }
+
+  /* category headers */
+  .cat-label {
+    font-family: 'Orbitron', sans-serif; font-size: 7px;
+    letter-spacing: 3px; text-transform: uppercase;
+    padding: 5px 2px 3px; border-bottom: 1px solid;
+    margin-top: 3px;
+  }
+  .cat-ctx  { color: #667788; border-color: rgba(100,130,180,0.22); }
+  .cat-free { color: #2266ff; border-color: rgba(34,102,255,0.28); }
+  .cat-occ  { color: #cc8800; border-color: rgba(255,160,0,0.28); }
+
+  .state-btn {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 7px; padding: 8px 11px; cursor: pointer;
+    transition: all 0.22s; position: relative; overflow: hidden;
+    backdrop-filter: blur(10px);
+  }
+  .state-btn::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--c, #2255cc); opacity: 0;
+    transition: opacity 0.22s; border-radius: 7px 0 0 7px;
+  }
+  .state-btn:hover { border-color: rgba(60,120,255,0.38); background: rgba(10,18,42,0.96); }
+  .state-btn.active {
+    border-color: var(--c, #2255cc); background: rgba(7,13,32,0.98);
+    box-shadow: 0 0 14px rgba(30,80,200,0.15);
+  }
+  .state-btn.active::before { opacity: 1; }
+  .btn-row { display: flex; align-items: center; gap: 9px; }
+  .btn-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
+  .btn-name { font-family: 'Orbitron', sans-serif; font-size: 8px; font-weight: 600; letter-spacing: 1px; color: #d0e4ff; }
+  .btn-desc { font-size: 7px; color: var(--muted); margin-top: 2px; letter-spacing: 0.2px; }
+
+  /* ── Nav sub-section ── */
+  #nav-sep { border-top: 1px solid var(--border); margin: 6px 0 4px; }
+  .nav-status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 8px; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px;
+  }
+  .ndot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--muted);
+    transition: all 0.3s; flex-shrink: 0;
+  }
+  .ndot.on { background: #3388ff; box-shadow: 0 0 8px #3388ff80; }
+  .nav-grid { display: grid; grid-template-columns: repeat(3, 38px); gap: 4px; }
+  .nbtn {
+    height: 34px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s; color: var(--text); user-select: none;
+    backdrop-filter: blur(8px);
+  }
+  .nbtn:hover { background: rgba(17,80,255,0.14); border-color: rgba(51,136,255,0.42); }
+  .nbtn.pr { background: rgba(17,80,255,0.28); border-color: #3388ff; box-shadow: 0 0 10px #3388ff44; }
+  .nbtn.empty { border: none; background: transparent; cursor: default; }
+
+  /* ── Watermark ── */
+  #wm {
+    position: fixed; right: 20px; top: 18px;
+    font-family: 'Orbitron', sans-serif; font-size: 32px; font-weight: 900;
+    color: rgba(255,255,255,0.04); text-transform: uppercase;
+    pointer-events: none; letter-spacing: -1px; text-align: right;
+    z-index: 5; user-select: none; transition: opacity 0.6s;
+  }
+
+  /* ── Legend ── */
+  #legend {
+    position: fixed; right: 16px; bottom: 16px; z-index: 10;
+    display: flex; flex-direction: column; gap: 7px; align-items: flex-end;
+  }
+  .lr { display: flex; align-items: center; gap: 7px; }
+  .ld { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .lt { font-size: 8px; letter-spacing: 1.2px; color: var(--muted); }
+
+  /* ── HUD ── */
+  #hud {
+    position: fixed; right: 18px; top: 80px;
+    font-size: 8px; letter-spacing: 2px; color: var(--muted);
+    z-index: 10; text-align: right; line-height: 2;
+  }
+  #hud b { color: #1a4488; font-weight: 400; }
+
+  /* scanlines */
+  body::after {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 3;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.022) 2px, rgba(0,0,0,0.022) 4px);
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="panel">
+  <div class="sec-label">// Ring Light</div>
+  <div class="ring-tag" style="border-color:#2255cc; color:#3366cc">● 状态层 STATE RING</div>
+  <div id="sbuf"></div>
+
+  <div id="nav-sep"></div>
+  <div class="ring-tag" style="border-color:#1166ee; color:#1a77ee">◌ 导航层 NAV RING</div>
+  <div class="nav-status">
+    <div class="ndot" id="ndot"></div>
+    <span id="nlabel">IDLE — WASD 控制方向</span>
+  </div>
+  <div class="nav-grid">
+    <div class="nbtn empty"></div>
+    <div class="nbtn" data-d="f" id="bf">▲</div>
+    <div class="nbtn empty"></div>
+    <div class="nbtn" data-d="l" id="bl">◀</div>
+    <div class="nbtn" data-d="b" id="bb">▼</div>
+    <div class="nbtn" data-d="r" id="br">▶</div>
+  </div>
+</div>
+
+<div id="wm">PASSIVE</div>
+
+<div id="legend">
+  <div class="lr"><div class="ld" style="background:#2255cc;box-shadow:0 0 5px #2255cc"></div><div class="lt">状态层 STATE</div></div>
+  <div class="lr"><div class="ld" style="background:#1166ee;box-shadow:0 0 5px #1166ee"></div><div class="lt">导航层 NAV</div></div>
+</div>
+
+<div id="hud">DRAG <b>↔</b> ROTATE<br>SCROLL <b>↕</b> ZOOM</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls }   from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer }  from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass }      from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass }      from 'three/addons/postprocessing/OutputPass.js';
+
+// ── Renderer ────────────────────────────────────────────────────
+const canvas   = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping         = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+// ── Scene ────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060810);
+scene.fog = new THREE.FogExp2(0x060810, 0.028);
+
+// ── Camera ───────────────────────────────────────────────────────
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 80);
+camera.position.set(0, 0.6, 6.2);
+
+// ── Controls ─────────────────────────────────────────────────────
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.6, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance   = 2.5;
+controls.maxDistance   = 13;
+controls.maxPolarAngle = Math.PI * 0.76;
+
+// ── Post-processing ───────────────────────────────────────────────
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.55, 0.55, 0.32);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+// ── Scene Lighting ────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x3a5070, 6.0));
+const keyLight = new THREE.DirectionalLight(0x99bbdd, 2.5);
+keyLight.position.set(2, 8, 4); scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x6688aa, 1.8);
+fillLight.position.set(-2, 3, 6); scene.add(fillLight);
+const rimLight = new THREE.DirectionalLight(0x334466, 1.0);
+rimLight.position.set(-4, 3, -6); scene.add(rimLight);
+
+// ── Materials ─────────────────────────────────────────────────────
+const M = (opts) => new THREE.MeshStandardMaterial(opts);
+const matBody    = M({ color: 0x2a3040, metalness: 0.70, roughness: 0.35 });
+const matShell   = M({ color: 0x353d50, metalness: 0.75, roughness: 0.28 });
+const matChassis = M({ color: 0x1e2530, metalness: 0.65, roughness: 0.42 });
+const matJoint   = M({ color: 0x1a2030, metalness: 0.82, roughness: 0.22 });
+const matPanel   = M({ color: 0x141a24, metalness: 0.88, roughness: 0.18 });
+const matVisor   = M({ color: 0x0a1020, emissive: 0x0a1828, emissiveIntensity: 0.8, metalness: 0.9, roughness: 0.06 });
+
+function mk(geo, mat, px=0, py=0, pz=0, rx=0, ry=0, rz=0) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(px, py, pz);
+  m.rotation.set(rx, ry, rz);
+  scene.add(m);
+  return m;
+}
+
+// ── Robot body ────────────────────────────────────────────────────
+mk(new THREE.CylinderGeometry(1.13, 1.22, 0.62, 64), matChassis, 0, -1.31, 0);
+{ const t = new THREE.Mesh(new THREE.TorusGeometry(1.13, 0.022, 8, 80), matJoint); t.position.y = -1.00; t.rotation.x = Math.PI/2; scene.add(t); }
+{ const t = new THREE.Mesh(new THREE.TorusGeometry(1.18, 0.018, 8, 80), matJoint); t.position.y = -1.62; t.rotation.x = Math.PI/2; scene.add(t); }
+mk(new THREE.CylinderGeometry(0.72, 0.79, 2.60, 48), matBody,  0, 0.30, 0);
+mk(new THREE.CylinderGeometry(0.68, 0.73, 2.54, 48), matShell, 0, 0.30, 0);
+mk(new THREE.BoxGeometry(0.04, 0.20, 0.04), matPanel,  0,     0.32, 0.70);
+mk(new THREE.BoxGeometry(0.04, 0.14, 0.04), matPanel, -0.06,  0.47, 0.70);
+mk(new THREE.BoxGeometry(0.04, 0.14, 0.04), matPanel,  0.06,  0.47, 0.70);
+mk(new THREE.CylinderGeometry(0.46, 0.52, 0.10, 32), matJoint, 0, 1.65, 0);
+mk(new THREE.CylinderGeometry(0.27, 0.32, 0.22, 24), matShell, 0, 1.80, 0);
+mk(new THREE.BoxGeometry(0.82, 0.38, 0.66), matBody,  0, 2.10, 0);
+;[-0.37, 0.37].forEach(ex => mk(new THREE.CylinderGeometry(0.055, 0.055, 0.38, 10), matBody, ex, 2.10, 0));
+mk(new THREE.BoxGeometry(0.62, 0.09, 0.13), matJoint, 0, 2.30, -0.20);
+{ const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.66, 10), matJoint); pin.rotation.z = Math.PI/2; pin.position.set(0, 2.30, -0.20); scene.add(pin); }
+{ const uh = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.30, 0.54), matBody); uh.position.set(0, 2.46, 0.05); uh.rotation.x = -0.12; scene.add(uh);
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.06, 0.54), matJoint); cap.position.set(0, 2.62, 0.05); scene.add(cap); }
+mk(new THREE.BoxGeometry(0.75, 0.12, 0.06), matPanel, 0, 2.46, 0.32);
+;[-0.18, 0.18].forEach(cx => {
+  const b = new THREE.Mesh(new THREE.CylinderGeometry(0.040, 0.046, 0.09, 12), matPanel); b.rotation.x = Math.PI/2; b.position.set(cx, 2.45, 0.36); scene.add(b);
+  const g = new THREE.Mesh(new THREE.CircleGeometry(0.030, 12), matVisor); g.position.set(cx, 2.45, 0.41); scene.add(g);
+});
+
+// ── Floor ─────────────────────────────────────────────────────────
+mk(new THREE.PlaneGeometry(30, 30), M({ color: 0x060912, metalness: 0.35, roughness: 0.18 }), 0, -1.65, 0, -Math.PI/2);
+const grid = new THREE.GridHelper(30, 55, 0x0c1a38, 0x07101e);
+grid.position.y = -1.64; scene.add(grid);
+
+// ── Nav floor projection — fan-shaped shader mesh ──────────────────
+// Geometry lies in XZ plane (y=0), pivot handles height + rotation.
+// cos(a) for X, sin(a) for Z so center (a=0) points in +X, matching nav ring θ=0 → +X.
+const NAV_INNER = 1.15, NAV_OUTER = 3.90, NAV_HALF_ANG = 0.72, NAV_SEGS = 56;
+const _navPos = [], _navUV = [], _navIdx = [];
+for (let ring = 0; ring <= 1; ring++) {
+  const r = ring === 0 ? NAV_INNER : NAV_OUTER;
+  for (let i = 0; i <= NAV_SEGS; i++) {
+    const a = -NAV_HALF_ANG + (i / NAV_SEGS) * 2 * NAV_HALF_ANG;
+    _navPos.push(Math.cos(a) * r, 0, Math.sin(a) * r);  // cos→X, sin→Z
+    _navUV.push(i / NAV_SEGS, ring);
+  }
+}
+for (let i = 0; i < NAV_SEGS; i++) {
+  const a0 = i, a1 = i + 1, b0 = NAV_SEGS + 1 + i, b1 = NAV_SEGS + 1 + i + 1;
+  _navIdx.push(a0, b0, a1, a1, b0, b1);
+}
+const navFloorGeo = new THREE.BufferGeometry();
+navFloorGeo.setAttribute('position', new THREE.Float32BufferAttribute(_navPos, 3));
+navFloorGeo.setAttribute('uv',       new THREE.Float32BufferAttribute(_navUV, 2));
+navFloorGeo.setIndex(_navIdx);
+
+const navFloorMat = new THREE.ShaderMaterial({
+  uniforms: { uIntensity: { value: 0.0 } },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
+  `,
+  fragmentShader: `
+    uniform float uIntensity;
+    varying vec2 vUv;
+    void main() {
+      float edge    = abs(vUv.x - 0.5) * 2.0;
+      float angFade = pow(max(0.0, 1.0 - edge), 1.4);
+      float radFade = pow(max(0.0, 1.0 - vUv.y), 0.45);
+      float a = angFade * radFade * uIntensity;
+      gl_FragColor  = vec4(0.07, 0.40, 1.0, a);
+    }
+  `,
+  transparent: true,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+});
+
+const navFloorMesh = new THREE.Mesh(navFloorGeo, navFloorMat);
+navFloorMesh.renderOrder = 2;
+
+const navFloorPivot = new THREE.Object3D();
+navFloorPivot.position.y = -1.638;
+navFloorPivot.add(navFloorMesh);
+scene.add(navFloorPivot);
+let navFloorI = 0.0;
+
+// ── RING 1 — State Ring ───────────────────────────────────────────
+const N_S = 52, SR = 0.92, SY = -1.00;
+const sMeshes = [], sMats = [];
+for (let i = 0; i < N_S; i++) {
+  const θ = (i / N_S) * Math.PI * 2;
+  const mat = M({ color: new THREE.Color(0x0033bb), emissive: new THREE.Color(0x0033bb), emissiveIntensity: 0.14, roughness: 0.10, metalness: 0.20 });
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.038, 8, 8), mat);
+  mesh.position.set(Math.cos(θ) * SR, SY, Math.sin(θ) * SR);
+  scene.add(mesh); sMeshes.push(mesh); sMats.push(mat);
+}
+{ const sf = new THREE.Mesh(new THREE.TorusGeometry(SR, 0.016, 8, 90), M({ color: 0x161d2c, metalness: 0.92, roughness: 0.2 })); sf.position.y = SY; sf.rotation.x = Math.PI/2; scene.add(sf); }
+// Frosted diffuser
+{ const diffMat = new THREE.MeshPhysicalMaterial({ color: 0x2a3d5a, transparent: true, opacity: 0.52, roughness: 1.0, metalness: 0.0, side: THREE.DoubleSide, depthWrite: false }); const diffuser = new THREE.Mesh(new THREE.TorusGeometry(SR, 0.072, 16, 90), diffMat); diffuser.position.y = SY; diffuser.rotation.x = Math.PI/2; diffuser.renderOrder = 1; scene.add(diffuser); }
+
+// ── RING 2 — Nav Ring ─────────────────────────────────────────────
+const N_N = 66, NR = 1.12, NY = -1.38;
+const nMeshes = [], nMats = [];
+for (let i = 0; i < N_N; i++) {
+  const θ = (i / N_N) * Math.PI * 2;
+  const mat = M({ color: new THREE.Color(0x0055dd), emissive: new THREE.Color(0x0055dd), emissiveIntensity: 0.10, roughness: 0.06, metalness: 0.22 });
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.030, 7, 7), mat);
+  mesh.position.set(Math.cos(θ) * NR, NY, Math.sin(θ) * NR);
+  scene.add(mesh); nMeshes.push(mesh); nMats.push(mat);
+}
+{ const nf = new THREE.Mesh(new THREE.TorusGeometry(NR, 0.009, 6, 100), M({ color: 0x0e1420, metalness: 0.92, roughness: 0.2 })); nf.position.y = NY; nf.rotation.x = Math.PI/2; scene.add(nf); }
+
+// ── State categories & definitions ────────────────────────────────
+const CATEGORIES = [
+  {
+    id: 'ctx', label: 'DOING NOTHING', cls: 'cat-ctx',
+    states: [
+      { id:'passive', name:'被动聆听', nameEn:'PASSIVE', icon:'◌', desc:'环境感知 · 白色呼吸', col: new THREE.Color(0xb8cce8), hex:'#b8cce8' },
+    ]
+  },
+  {
+    id: 'free', label: 'FREE', cls: 'cat-free',
+    states: [
+      { id:'listen_free', name:'主动聆听', nameEn:'LISTENING',  icon:'◎', desc:'快速呼吸 · 蓝色', col: new THREE.Color(0x2266ff), hex:'#2266ff' },
+      { id:'process',     name:'思考处理', nameEn:'PROCESSING', icon:'◈', desc:'流光绕圈 · 蓝色', col: new THREE.Color(0x1155ee), hex:'#1155ee' },
+      { id:'speak_free',  name:'说话播报', nameEn:'SPEAKING',   icon:'◉', desc:'语音节律 · 蓝色', col: new THREE.Color(0x44aaff), hex:'#44aaff' },
+    ]
+  },
+  {
+    id: 'occ', label: 'OCCUPIED', cls: 'cat-occ',
+    states: [
+      { id:'task',       name:'执行任务', nameEn:'ON TASK',     icon:'▣', desc:'常亮占用 · 黄色',   col: new THREE.Color(0xffaa00), hex:'#ffaa00' },
+      { id:'interrupt',    name:'被打断',   nameEn:'INTERRUPTED', icon:'◎', desc:'快速呼吸 · 黄色',   col: new THREE.Color(0xff9900), hex:'#ff9900' },
+      { id:'process_occ',  name:'思考处理', nameEn:'PROCESSING',  icon:'◈', desc:'流光绕圈 · 黄色',   col: new THREE.Color(0xffaa00), hex:'#ffaa00' },
+      { id:'speak_occ',    name:'说话播报', nameEn:'SPEAKING',    icon:'◉', desc:'语音节律 · 黄色',   col: new THREE.Color(0xffaa00), hex:'#ffaa00' },
+      { id:'finish',     name:'收尾归位', nameEn:'FINISHING',   icon:'↓', desc:'黄→蓝流光 · 过渡',  col: new THREE.Color(0xffaa00), hex:'#ffaa00' },
+    ]
+  },
+];
+
+const STATES = CATEGORIES.flatMap(c => c.states);
+let curS  = STATES[0];
+let prevS = null;
+let transT = 1.0;
+const TDUR = 0.48;
+
+// Build state buttons with category headers
+const sbuf = document.getElementById('sbuf');
+const sBtns = [];
+CATEGORIES.forEach(cat => {
+  const hdr = document.createElement('div');
+  hdr.className = `cat-label ${cat.cls}`;
+  hdr.textContent = cat.label;
+  sbuf.appendChild(hdr);
+
+  cat.states.forEach(s => {
+    const btn = document.createElement('div');
+    btn.className = 'state-btn' + (s === STATES[0] ? ' active' : '');
+    btn.style.setProperty('--c', s.hex);
+    btn.innerHTML = `<div class="btn-row">
+      <span class="btn-icon">${s.icon}</span>
+      <div><div class="btn-name">${s.name}</div><div class="btn-desc">${s.desc}</div></div>
+    </div>`;
+    btn.addEventListener('click', () => switchState(s));
+    sbuf.appendChild(btn);
+    sBtns.push({ btn, s });
+  });
+});
+
+function switchState(s) {
+  if (s === curS) return;
+  prevS  = curS;
+  curS   = s;
+  transT = 0;
+  if (s.id === 'finish') finishStartTime = time;
+  sBtns.forEach(({ btn, s: bs }) => btn.classList.toggle('active', bs === s));
+  document.getElementById('wm').textContent = s.nameEn;
+}
+
+// ── Nav state ─────────────────────────────────────────────────────
+const DIR = { f:0, r:Math.PI*0.5, b:Math.PI, l:Math.PI*1.5 };
+let navAngle  = 0;
+let navActive = false;
+const keys    = new Set();
+const sI = new Float32Array(N_S).fill(0);
+const nI = new Float32Array(N_N).fill(0);
+let finishStartTime = -1;  // set when entering finish state
+
+document.querySelectorAll('.nbtn[data-d]').forEach(btn => {
+  const d = btn.dataset.d;
+  const on  = () => { keys.add(d); btn.classList.add('pr'); };
+  const off = () => { keys.delete(d); btn.classList.remove('pr'); };
+  btn.addEventListener('pointerdown', on);
+  btn.addEventListener('pointerup',   off);
+  btn.addEventListener('pointerleave', off);
+});
+window.addEventListener('keydown', e => {
+  const m = { ArrowUp:'f',KeyW:'f', ArrowDown:'b',KeyS:'b', ArrowLeft:'l',KeyA:'l', ArrowRight:'r',KeyD:'r' };
+  if (m[e.code]) keys.add(m[e.code]);
+});
+window.addEventListener('keyup', e => {
+  const m = { ArrowUp:'f',KeyW:'f', ArrowDown:'b',KeyS:'b', ArrowLeft:'l',KeyA:'l', ArrowRight:'r',KeyD:'r' };
+  if (m[e.code]) keys.delete(m[e.code]);
+});
+
+// ── State ring computation ─────────────────────────────────────────
+function calcState(s, t) {
+  const out = new Float32Array(N_S);
+
+  if (s.id === 'passive') {
+    // Slow white breathing, 4s period — kept dim
+    const v = 0.10 + 0.24 * (0.5 + 0.5 * Math.sin(t * Math.PI * 2 / 4.0));
+    out.fill(v);
+
+  } else if (s.id === 'listen_free') {
+    // Brisk blue breathing, 1.3s period — boosted brightness
+    const v = 0.62 + 0.68 * (0.5 + 0.5 * Math.sin(t * Math.PI * 2 / 1.3));
+    out.fill(v);
+
+  } else if (s.id === 'process') {
+    // Blue comet sweeping around
+    const headAngle = ((t * 1.30) % 1) * Math.PI * 2;
+    const TAIL = Math.PI * 0.88;
+    for (let i = 0; i < N_S; i++) {
+      const θ = (i / N_S) * Math.PI * 2;
+      let d = ((θ - headAngle) % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
+      out[i] = d < 0.12 ? 1.0 : d < TAIL ? 0.28 + 0.72 * Math.pow(1-(d-0.12)/(TAIL-0.12), 1.6) : 0.22;
+    }
+
+  } else if (s.id === 'speak_free') {
+    // Blue voice mimic — organic multi-frequency flicker
+    const v = Math.max(0.18,
+      0.52 + 0.22 * Math.sin(t * 19.3) + 0.16 * Math.sin(t * 33.7 + 0.5) + 0.10 * Math.sin(t * 7.2 + 1.8)
+    );
+    out.fill(v);
+
+  } else if (s.id === 'task') {
+    // Yellow solid, very slow warm pulse
+    const v = 0.80 + 0.10 * Math.sin(t * 0.9);
+    out.fill(v);
+
+  } else if (s.id === 'process_occ') {
+    // Yellow comet — shorter tail than blue process
+    const headAngle = ((t * 1.30) % 1) * Math.PI * 2;
+    const TAIL = Math.PI * 0.38;
+    for (let i = 0; i < N_S; i++) {
+      const θ = (i / N_S) * Math.PI * 2;
+      let d = ((θ - headAngle) % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
+      out[i] = d < 0.12 ? 1.0 : d < TAIL ? 0.08 + 0.92 * Math.pow(1-(d-0.12)/(TAIL-0.12), 2.2) : 0.04;
+    }
+
+  } else if (s.id === 'speak_occ') {
+    // Yellow voice mimic — slightly different rhythm than free
+    const v = Math.max(0.18,
+      0.52 + 0.22 * Math.sin(t * 16.8) + 0.16 * Math.sin(t * 29.1 + 1.1) + 0.10 * Math.sin(t * 9.4 + 0.3)
+    );
+    out.fill(v);
+
+  } else if (s.id === 'interrupt') {
+    // Yellow breathing, 1.6s period
+    const v = 0.40 + 0.60 * (0.5 + 0.5 * Math.sin(t * Math.PI * 2 / 1.6));
+    out.fill(v);
+
+  } else if (s.id === 'finish') {
+    // placeholder — handled per-bead in animate
+    out.fill(0.72);
+  }
+
+  return out;
+}
+
+// ── Nav ring computation ───────────────────────────────────────────
+function calcNav(active, angle) {
+  const out = new Float32Array(N_N);
+  if (!active) { out.fill(0.04); return out; }
+  const ARC = Math.PI * 0.22;
+  for (let i = 0; i < N_N; i++) {
+    const θ = (i / N_N) * Math.PI * 2;
+    let d = ((θ - angle) % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
+    if (d > Math.PI) d = Math.PI*2 - d;
+    const v = d < ARC ? Math.pow(Math.cos(d / ARC * Math.PI * 0.5), 1.5) : 0;
+    out[i] = 0.04 + v * 0.96;
+  }
+  return out;
+}
+
+// ── Pre-built color references ─────────────────────────────────────
+const colYellow = new THREE.Color(0xffaa00);
+const colBlue   = new THREE.Color(0x2266ff);
+const colNav    = new THREE.Color(0x1166ff);
+
+// ── Animation loop ─────────────────────────────────────────────────
+const clock = new THREE.Clock();
+let time = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  time += dt;
+
+  controls.update();
+
+  // Nav direction
+  let goal = navAngle;
+  let anyKey = false;
+  if (keys.has('f')) { goal = DIR.f; anyKey = true; }
+  if (keys.has('b')) { goal = DIR.b; anyKey = true; }
+  if (keys.has('l')) { goal = DIR.l; anyKey = true; }
+  if (keys.has('r')) { goal = DIR.r; anyKey = true; }
+  let da = ((goal - navAngle + Math.PI*3) % (Math.PI*2)) - Math.PI;
+  navAngle  += da * Math.min(1, dt * 9);
+  navActive  = anyKey;
+
+  // Nav UI
+  document.getElementById('ndot').classList.toggle('on', navActive);
+  if (navActive) {
+    const labels = { 0:'↑ FORWARD', 1:'→ RIGHT', 2:'↓ BACK', 3:'← LEFT' };
+    const idx = Math.round(navAngle / (Math.PI/2)) & 3;
+    document.getElementById('nlabel').textContent = labels[idx];
+  } else {
+    document.getElementById('nlabel').textContent = 'IDLE — WASD 控制方向';
+  }
+
+  // Nav floor projection: pivot rotates to match nav ring direction (θ=0 → +X)
+  navFloorPivot.rotation.y = -navAngle;
+  navFloorI += ((navActive ? 0.92 : 0.0) - navFloorI) * Math.min(1, dt * 4.5);
+  navFloorMat.uniforms.uIntensity.value = navFloorI;
+
+  // State transition easing
+  transT = Math.min(1, transT + dt / TDUR);
+  const ease = transT < 0.5 ? 2*transT*transT : 1 - Math.pow(-2*transT+2,2)/2;
+
+  // ── State ring rendering ──────────────────────────────────────────
+  if (curS.id === 'finish') {
+    // Sequential: bead 0 turns blue first, bead N_S-1 last, over FINISH_DUR seconds.
+    const FINISH_DUR = 3.2;
+    const BEAD_FADE  = 0.45;  // each bead fades yellow→blue in this many seconds
+    const elapsed = finishStartTime >= 0 ? time - finishStartTime : FINISH_DUR + 1;
+
+    for (let i = 0; i < N_S; i++) {
+      const beadDelay = (i / (N_S - 1)) * (FINISH_DUR - BEAD_FADE);
+      const prog = Math.max(0, Math.min(1, (elapsed - beadDelay) / BEAD_FADE));
+      const bCol = colYellow.clone().lerp(colBlue, prog);
+      const brightness = 0.72 + 0.18 * prog;
+      sI[i] += (brightness - sI[i]) * Math.min(1, dt * 14);
+      sMats[i].color.copy(bCol);
+      sMats[i].emissive.copy(bCol);
+      sMats[i].emissiveIntensity = sI[i] * 2.2;
+    }
+  } else {
+    const newT  = calcState(curS, time);
+    const prevT = prevS ? calcState(prevS, time) : new Float32Array(N_S);
+    const blendCol = prevS ? prevS.col.clone().lerp(curS.col, ease) : curS.col.clone();
+    for (let i = 0; i < N_S; i++) {
+      const target = prevT[i] * (1 - ease) + newT[i] * ease;
+      sI[i] += (target - sI[i]) * Math.min(1, dt * 20);
+      sMats[i].color.copy(blendCol);
+      sMats[i].emissive.copy(blendCol);
+      sMats[i].emissiveIntensity = sI[i] * (curS.id === 'process' ? 5.5 : curS.id === 'process_occ' ? 4.0 : 2.2);
+    }
+  }
+
+  // Nav ring
+  const navT = calcNav(navActive, navAngle);
+  for (let i = 0; i < N_N; i++) {
+    nI[i] += (navT[i] - nI[i]) * Math.min(1, dt * 12);
+    nMats[i].color.copy(colNav);
+    nMats[i].emissive.copy(colNav);
+    nMats[i].emissiveIntensity = nI[i] * 5.5;
+  }
+
+  composer.render();
+}
+
+// ── Resize ─────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+  bloom.setSize(innerWidth, innerHeight);
+});
+
+document.getElementById('wm').textContent = STATES[0].nameEn;
+animate();
+</script>
+</body>
+</html>
