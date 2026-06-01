@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>Robot Ring Light — 灯光交互演示</title>
+<title>Robot Ring Light — Interactive Demo</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -138,14 +138,14 @@
 
 <div id="panel">
   <div class="sec-label">// Ring Light</div>
-  <div class="ring-tag" style="border-color:#2255cc; color:#3366cc">● 状态层 STATE RING</div>
+  <div class="ring-tag" style="border-color:#2255cc; color:#3366cc">● STATE RING</div>
   <div id="sbuf"></div>
 
   <div id="nav-sep"></div>
-  <div class="ring-tag" style="border-color:#1166ee; color:#1a77ee">◌ 导航层 NAV RING</div>
+  <div class="ring-tag" style="border-color:#1166ee; color:#1a77ee">◌ NAV RING</div>
   <div class="nav-status">
     <div class="ndot" id="ndot"></div>
-    <span id="nlabel">IDLE — WASD 控制方向</span>
+    <span id="nlabel">IDLE — WASD TO NAVIGATE</span>
   </div>
   <div class="nav-grid">
     <div class="nbtn empty"></div>
@@ -160,8 +160,8 @@
 <div id="wm">PASSIVE</div>
 
 <div id="legend">
-  <div class="lr"><div class="ld" style="background:#2255cc;box-shadow:0 0 5px #2255cc"></div><div class="lt">状态层 STATE</div></div>
-  <div class="lr"><div class="ld" style="background:#1166ee;box-shadow:0 0 5px #1166ee"></div><div class="lt">导航层 NAV</div></div>
+  <div class="lr"><div class="ld" style="background:#2255cc;box-shadow:0 0 5px #2255cc"></div><div class="lt">STATE RING</div></div>
+  <div class="lr"><div class="ld" style="background:#1166ee;box-shadow:0 0 5px #1166ee"></div><div class="lt">NAV RING</div></div>
 </div>
 
 <div id="hud">DRAG <b>↔</b> ROTATE<br>SCROLL <b>↕</b> ZOOM</div>
@@ -355,25 +355,25 @@ const CATEGORIES = [
   {
     id: 'ctx', label: 'DOING NOTHING', cls: 'cat-ctx',
     states: [
-      { id:'passive', name:'被动聆听', nameEn:'PASSIVE', icon:'◌', desc:'环境感知 · 白色呼吸', col: new THREE.Color(0xb8cce8), hex:'#b8cce8' },
+      { id:'passive', name:'Passive Listening', nameEn:'PASSIVE', icon:'◌', desc:'Context aware · White breathing', col: new THREE.Color(0xb8cce8), hex:'#b8cce8' },
     ]
   },
   {
     id: 'free', label: 'FREE', cls: 'cat-free',
     states: [
-      { id:'listen_free', name:'主动聆听', nameEn:'LISTENING',  icon:'◎', desc:'快速呼吸 · 蓝色', col: new THREE.Color(0x2266ff), hex:'#2266ff' },
-      { id:'process',     name:'思考处理', nameEn:'PROCESSING', icon:'◈', desc:'流光绕圈 · 蓝色', col: new THREE.Color(0x1155ee), hex:'#1155ee' },
-      { id:'speak_free',  name:'说话播报', nameEn:'SPEAKING',   icon:'◉', desc:'语音节律 · 蓝色', col: new THREE.Color(0x44aaff), hex:'#44aaff' },
+      { id:'listen_free', name:'Active Listening', nameEn:'LISTENING',  icon:'◎', desc:'Fast breathing · Blue', col: new THREE.Color(0x2266ff), hex:'#2266ff' },
+      { id:'process',     name:'Processing',       nameEn:'PROCESSING', icon:'◈', desc:'Comet sweep · Blue',    col: new THREE.Color(0x1155ee), hex:'#1155ee' },
+      { id:'speak_free',  name:'Speaking',          nameEn:'SPEAKING',   icon:'◉', desc:'Voice rhythm · Blue',  col: new THREE.Color(0x44aaff), hex:'#44aaff' },
     ]
   },
   {
     id: 'occ', label: 'OCCUPIED', cls: 'cat-occ',
     states: [
-      { id:'task',       name:'执行任务', nameEn:'ON TASK',     icon:'▣', desc:'常亮占用 · 黄色',   col: new THREE.Color(0xffaa00), hex:'#ffaa00' },
-      { id:'interrupt',    name:'被打断',   nameEn:'INTERRUPTED', icon:'◎', desc:'快速呼吸 · 黄色',   col: new THREE.Color(0xff9900), hex:'#ff9900' },
-      { id:'process_occ',  name:'思考处理', nameEn:'PROCESSING',  icon:'◈', desc:'流光绕圈 · 黄色',   col: new THREE.Color(0xffaa00), hex:'#ffaa00' },
-      { id:'speak_occ',    name:'说话播报', nameEn:'SPEAKING',    icon:'◉', desc:'语音节律 · 黄色',   col: new THREE.Color(0xffaa00), hex:'#ffaa00' },
-      { id:'finish',     name:'收尾归位', nameEn:'FINISHING',   icon:'↓', desc:'黄→蓝流光 · 过渡',  col: new THREE.Color(0xffaa00), hex:'#ffaa00' },
+      { id:'task',         name:'Doing Task',    nameEn:'ON TASK',     icon:'▣', desc:'Solid on · Yellow',        col: new THREE.Color(0xffaa00), hex:'#ffaa00' },
+      { id:'interrupt',    name:'Interrupted',   nameEn:'INTERRUPTED', icon:'◎', desc:'Fast breathing · Yellow',  col: new THREE.Color(0xff9900), hex:'#ff9900' },
+      { id:'process_occ',  name:'Processing',    nameEn:'PROCESSING',  icon:'◈', desc:'Comet sweep · Yellow',     col: new THREE.Color(0xffaa00), hex:'#ffaa00' },
+      { id:'speak_occ',    name:'Speaking',      nameEn:'SPEAKING',    icon:'◉', desc:'Voice rhythm · Yellow',    col: new THREE.Color(0xffaa00), hex:'#ffaa00' },
+      { id:'finish',       name:'Finishing',     nameEn:'FINISHING',   icon:'↓', desc:'Yellow → Blue transition', col: new THREE.Color(0xffaa00), hex:'#ffaa00' },
     ]
   },
 ];
@@ -558,7 +558,7 @@ function animate() {
     const idx = Math.round(navAngle / (Math.PI/2)) & 3;
     document.getElementById('nlabel').textContent = labels[idx];
   } else {
-    document.getElementById('nlabel').textContent = 'IDLE — WASD 控制方向';
+    document.getElementById('nlabel').textContent = 'IDLE — WASD TO NAVIGATE';
   }
 
   // Nav floor projection: pivot rotates to match nav ring direction (θ=0 → +X)
