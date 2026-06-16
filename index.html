@@ -353,7 +353,7 @@ let navFloorI = 0.0;
 // ── RING 1 — State Ring (3D arc: front-left-bottom → left shoulder → back → right shoulder → front-right-bottom) ──
 // Arc sweeps 270° from θ=135° (front-left) through left→back→right to θ=45° (front-right).
 // Front face (θ 45°→135°) is intentionally open — no beads.
-const N_S = 52;
+const N_S = 90;
 const sMeshes = [], sMats = [];
 
 const ARC_θ0   = Math.PI * 3 / 4;  // 135° — front-left start
@@ -367,21 +367,21 @@ function arcPt(t) {
   const sm = x => x * x * (3 - 2 * x);                                  // smoothstep
   const yf = t < ARC_RISE ? sm(t / ARC_RISE) : t > 1 - ARC_RISE ? sm((1 - t) / ARC_RISE) : 1.0;
   const y  = ARC_Y0 + (ARC_Y1 - ARC_Y0) * yf;
-  // Body radius tapers 0.79→0.72 over its height; bead sits 0.13 outside the body surface
-  const r  = (0.79 - 0.07 * ((y + 1.00) / 2.60)) + 0.13;
+  // Body radius tapers 0.79→0.72 over its height; bead sits 0.035 outside the body surface
+  const r  = (0.79 - 0.07 * ((y + 1.00) / 2.60)) + 0.035;
   return new THREE.Vector3(Math.cos(θ) * r, y, Math.sin(θ) * r);
 }
 
 for (let i = 0; i < N_S; i++) {
   const pos = arcPt(i / (N_S - 1));
   const mat = M({ color: new THREE.Color(0x0033bb), emissive: new THREE.Color(0x0033bb), emissiveIntensity: 0.14, roughness: 0.10, metalness: 0.20 });
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.038, 8, 8), mat);
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 8), mat);
   mesh.position.copy(pos);
   scene.add(mesh); sMeshes.push(mesh); sMats.push(mat);
 }
 // Thin track tube along the same arc path
 { const pts = []; for (let i = 0; i <= 96; i++) pts.push(arcPt(i / 96));
-  scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, 0.013, 7, false), M({ color: 0x141c2e, metalness: 0.93, roughness: 0.18 }))); }
+  scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, 0.009, 7, false), M({ color: 0x141c2e, metalness: 0.93, roughness: 0.18 }))); }
 
 // ── RING 2 — Nav Ring ─────────────────────────────────────────────
 const N_N = 66, NR = 1.12, NY = -1.38;
