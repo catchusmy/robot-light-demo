@@ -350,19 +350,38 @@ navFloorPivot.add(navFloorMesh);
 scene.add(navFloorPivot);
 let navFloorI = 0.0;
 
-// ── RING 1 — State Ring ───────────────────────────────────────────
-const N_S = 52, SR = 0.92, SY = -1.00;
+// ── RING 1 — State Ring (3D arc: front-left-bottom → left shoulder → back → right shoulder → front-right-bottom) ──
+// Arc sweeps 270° from θ=135° (front-left) through left→back→right to θ=45° (front-right).
+// Front face (θ 45°→135°) is intentionally open — no beads.
+const N_S = 52;
 const sMeshes = [], sMats = [];
+
+const ARC_θ0   = Math.PI * 3 / 4;  // 135° — front-left start
+const ARC_SPAN = Math.PI * 3 / 2;  // 270° sweep through left → back → right
+const ARC_Y0   = -0.90;             // height at start/end (lower body, above chassis)
+const ARC_Y1   =  1.46;             // height at shoulder (near body top)
+const ARC_RISE =  0.22;             // fraction of arc for the ascent / descent legs
+
+function arcPt(t) {
+  const θ  = ARC_θ0 + t * ARC_SPAN;
+  const sm = x => x * x * (3 - 2 * x);                                  // smoothstep
+  const yf = t < ARC_RISE ? sm(t / ARC_RISE) : t > 1 - ARC_RISE ? sm((1 - t) / ARC_RISE) : 1.0;
+  const y  = ARC_Y0 + (ARC_Y1 - ARC_Y0) * yf;
+  // Body radius tapers 0.79→0.72 over its height; bead sits 0.13 outside the body surface
+  const r  = (0.79 - 0.07 * ((y + 1.00) / 2.60)) + 0.13;
+  return new THREE.Vector3(Math.cos(θ) * r, y, Math.sin(θ) * r);
+}
+
 for (let i = 0; i < N_S; i++) {
-  const θ = (i / N_S) * Math.PI * 2;
+  const pos = arcPt(i / (N_S - 1));
   const mat = M({ color: new THREE.Color(0x0033bb), emissive: new THREE.Color(0x0033bb), emissiveIntensity: 0.14, roughness: 0.10, metalness: 0.20 });
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.038, 8, 8), mat);
-  mesh.position.set(Math.cos(θ) * SR, SY, Math.sin(θ) * SR);
+  mesh.position.copy(pos);
   scene.add(mesh); sMeshes.push(mesh); sMats.push(mat);
 }
-{ const sf = new THREE.Mesh(new THREE.TorusGeometry(SR, 0.016, 8, 90), M({ color: 0x161d2c, metalness: 0.92, roughness: 0.2 })); sf.position.y = SY; sf.rotation.x = Math.PI/2; scene.add(sf); }
-// Frosted diffuser
-{ const diffMat = new THREE.MeshPhysicalMaterial({ color: 0x2a3d5a, transparent: true, opacity: 0.52, roughness: 1.0, metalness: 0.0, side: THREE.DoubleSide, depthWrite: false }); const diffuser = new THREE.Mesh(new THREE.TorusGeometry(SR, 0.072, 16, 90), diffMat); diffuser.position.y = SY; diffuser.rotation.x = Math.PI/2; diffuser.renderOrder = 1; scene.add(diffuser); }
+// Thin track tube along the same arc path
+{ const pts = []; for (let i = 0; i <= 96; i++) pts.push(arcPt(i / 96));
+  scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, 0.013, 7, false), M({ color: 0x141c2e, metalness: 0.93, roughness: 0.18 }))); }
 
 // ── RING 2 — Nav Ring ─────────────────────────────────────────────
 const N_N = 66, NR = 1.12, NY = -1.38;
